@@ -16,6 +16,7 @@ double relClockOffset() {
     return ret;
 }
 
+
 int main(){
     ifstream f("input", std::ios::binary);
 

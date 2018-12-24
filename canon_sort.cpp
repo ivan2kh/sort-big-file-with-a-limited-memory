@@ -7,9 +7,13 @@ using namespace std;
 
 int main(int argc, const char *argv[]) {
     ifstream f("input", std::ios::binary);
-
+    f.seekg(0, ios::end);
 
     vector<uint32_t > arr;
+    arr.reserve(f.tellg()/4);
+
+    f.seekg(0, ios::beg);
+
     while(!f.eof()) {
         uint32_t x;
         f.read((char*)&x, sizeof(x));
