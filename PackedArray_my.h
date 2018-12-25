@@ -5,7 +5,7 @@
 #ifndef SORT_PACKEDARRAY_H
 #define SORT_PACKEDARRAY_H
 
-
+#include <cstring>
 
 template <unsigned bits, unsigned count>
 struct PackedArray_my {
@@ -36,6 +36,9 @@ struct PackedArray_my {
 //            buf[cell]
 //            buf[cell+1]
         }
+    }
+    static unsigned bufsize(unsigned elements) {
+        return  4*(elements * bits / 32 + ((elements*bits) % 32 !=0));
     }
     uint32_t buf[count*bits/32];
 };

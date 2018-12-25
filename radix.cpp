@@ -17,10 +17,29 @@ double relClockOffset() {
     gClock = c2;
     return ret;
 }
+//      cnt	radix
+//22	131	310	10.8593942379
+//21	161	287	9.6955006817
+//20	239	268	7.915443702
+//19	336	264	6.7640692641 <--best performance on my ssd
+//18	346	249	6.9062376674
+//17	356	238	7.0106694363
+//16	460	197	7.2500551755
+//Integer packing is almost constant 450 MEls/s
+//
+#include <sys/time.h>
+#include <sys/resource.h>
 
 int main() {
+    rlimit l;
+    getrlimit(RLIMIT_NOFILE, &l);
+    l.rlim_cur = 1<<17;
+    setrlimit(RLIMIT_NOFILE, &l);
+
     FILE *f = fopen("input", "rb");
     if(!f) return -1;
+    FILE *fw = fopen("output", "wb");
+    if(!fw) return -1;
 //                           0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22,23
     constexpr unsigned nok[]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,32, 8,32,16,32, 2,32,16,32, 8,32,16,32};
     constexpr unsigned nbuckets_pow = 11;
@@ -28,16 +47,23 @@ int main() {
     constexpr unsigned bits = 32-nbuckets_pow;
     constexpr unsigned bucket_nok = nok[bits];
     constexpr unsigned unaligned_bucket_size = 2048;
-    const size_t max_bucket_size = unaligned_bucket_size - unaligned_bucket_size % bucket_nok;
-    vector<array<uint32_t, max_bucket_size> > buckets(buckets_count);
+    constexpr unsigned max_bucket_size = unaligned_bucket_size - unaligned_bucket_size % bucket_nok;
+    constexpr unsigned max_packed_bucket_size = sizeof(PackedArray_my<bits, max_bucket_size>::buf);
+    vector<PackedArray_my<bits, max_bucket_size> > buckets(buckets_count);
     vector<size_t> buckets_sizes(buckets_count, 0);
     array<uint32_t, 16> readbuf;
 
-    PackedArray *pa = PackedArray_create(32-nbuckets_pow, max_bucket_size);
-
-    vector<ofstream> of(0);
+    vector<FILE *> tmpf(0);
+    tmpf.reserve(buckets_count);
     for(int i=0;i< buckets_count; i++) {
-        of.emplace_back("./tmp/" + to_string(i)+".bin", ios::binary|ios::trunc|ios::in|ios::out);
+        string fname("./tmp/" + to_string(i)+".bin");
+        FILE *f = fopen(fname.c_str(), "wb+");
+        if(!f) {
+            cerr << "cannot open "<<fname<<"\n";
+            return -1;
+
+        }
+        tmpf.push_back(f);
     }
 
     cerr << "packing...\t";
@@ -48,11 +74,10 @@ int main() {
             size_t bucket_index = *x >> (bits);
             auto &bucket = buckets[bucket_index];
             size_t &bucket_size = buckets_sizes[bucket_index];
-            bucket[bucket_size++ % max_bucket_size] = *x;
+            bucket.set_or(bucket_size++ % max_bucket_size, *x);
             if(bucket_size % max_bucket_size == 0) {
-//                of[bucket_index].write((char*)bucket.data(), 4*max_bucket_size);
-                PackedArray_pack(pa, 0, bucket.data(), max_bucket_size);
-                of[bucket_index].write((char*)pa->buffer, 4 * max_bucket_size * bits / 32);
+                fwrite(bucket.buf, 1, max_packed_bucket_size, tmpf[bucket_index]);
+                bucket.clear();
             }
         }
     }
@@ -61,13 +86,55 @@ int main() {
         size_t &bucket_size = buckets_sizes[bucket_index];
         if(bucket_size>0) {
             auto &bucket = buckets[bucket_index];
-            pa->count = bucket_size % max_bucket_size;
-            PackedArray_pack(pa, 0, bucket.data(), bucket_size % max_bucket_size);
-            of[bucket_index].write((char *) pa->buffer, 4 * PackedArray_bufferSize(pa));
+            fwrite(bucket.buf, 1, bucket.bufsize(bucket_size % max_bucket_size), tmpf[bucket_index]);
         }
     }
 
     cerr << relClockOffset() << "\n";
 
+    return 0;
+    cerr << "sorting...\t";
+
+    vector<size_t> cnt(1 << bits);
+
+    PackedArray_my<bits, max_bucket_size> pa;
+
+    for(unsigned bucket_index=0; bucket_index< buckets_count; bucket_index++) {
+        fseek(tmpf[bucket_index], 0, SEEK_SET);
+
+        memset(cnt.data(), 0, cnt.size() * sizeof(cnt[0]));
+
+        auto bucket_size = buckets_sizes[bucket_index];
+        while(bucket_size>0) {
+            unsigned els_count = bucket_size>=max_bucket_size ? max_packed_bucket_size : max_bucket_size % max_packed_bucket_size;
+            unsigned to_read = els_count == max_bucket_size ? max_packed_bucket_size :
+                               PackedArray_my<bits, max_bucket_size>::bufsize(els_count);
+            size_t consumed = fread(pa.buf, 1, to_read, tmpf[bucket_index]);
+            if(consumed!= to_read)
+                return -1;
+
+            for(unsigned i=0;i<els_count;i++) {
+                cnt[pa.get(i)]++;
+            }
+            bucket_size-=els_count;
+        }
+
+
+        for (int a = 0; a < 1 << bits; a++) {
+            auto tot = cnt[a];
+            for (int i = 0; i < tot; i++) {
+                uint32_t val = a^(bucket_index<<bits);
+                fwrite(&val, 4, 1, fw);
+            }
+        }
+    }
+
+    cerr << relClockOffset() << "\n";
+
+    fclose(f);
+    fclose(fw);
+    for(unsigned bucket_index=0; bucket_index< buckets_count; bucket_index++) {
+        fclose(tmpf[bucket_index]);
+    }
 
 }
