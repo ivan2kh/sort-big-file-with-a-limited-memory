@@ -20,18 +20,37 @@ vector<uint32_t> offs(0);
 vector<uint32_t> val(0);
 
 template <unsigned bits>
-struct TestBits{
+struct TestOrSpeed{
     static void test() {
 
         relClockOffset();
 
         PackedArray_my<bits, els> pa;
 
+        const unsigned mask = (unsigned)(1<<bits)-1;
+
         for(int a=0;a<tot;a++) {
             pa.set_or(offs[a], val[a]);
         }
 
         cerr << "bits="<<bits <<"speed: "<< tot / 1024 / 1024/ relClockOffset() << "MEl"<< "\n";
+    }
+};
+
+template <unsigned bits>
+struct TestSetGet{
+    static void test() {
+
+        relClockOffset();
+
+        PackedArray_my<bits, els> pa;
+
+        const unsigned mask = (unsigned)(1<<bits)-1;
+
+        for(int a=0;a<els;a++) {
+            pa.set_or(a, val[a]);
+            ASSERT_EQ(pa.get(a), val[a] & mask)<<"at offset "<<a<<" and bits="<<bits;
+        }
     }
 };
 
@@ -48,14 +67,20 @@ TEST(PackedArray, Random)
         val.push_back(distr(eng));
         offs.push_back(distr(eng) & (els-1));
     }
-
-    TestBits<16>::test();
-    TestBits<17>::test();
-    TestBits<18>::test();
-    TestBits<19>::test();
-    TestBits<20>::test();
-    TestBits<21>::test();
-    TestBits<22>::test();
+    TestSetGet<16>::test();
+    TestSetGet<17>::test();
+    TestSetGet<18>::test();
+    TestSetGet<19>::test();
+    TestSetGet<20>::test();
+    TestSetGet<21>::test();
+    TestSetGet<22>::test();
+//    TestOrSpeed<16>::test();
+//    TestOrSpeed<17>::test();
+//    TestOrSpeed<18>::test();
+//    TestOrSpeed<19>::test();
+//    TestOrSpeed<20>::test();
+//    TestOrSpeed<21>::test();
+//    TestOrSpeed<22>::test();
 
 }
 

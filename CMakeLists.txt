@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.11)
 project(sort)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -9,7 +9,7 @@ add_executable(sum sum.cpp)
 add_executable(generate generate.cpp)
 add_executable(canon_sort canon_sort.cpp)
 add_executable(radix radix.cpp PackedArray.c)
-add_executable(test1 counting_sort_benchmark.cpp)
+add_executable(sort_benchmark counting_sort_benchmark.cpp)
 add_executable(parallel_write_test parallel_write_test.cpp)
 
 ADD_SUBDIRECTORY (googletest)
