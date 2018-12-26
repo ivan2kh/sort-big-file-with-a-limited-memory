@@ -4,7 +4,7 @@
 
 #ifndef SORT_BUFFERS_H
 #define SORT_BUFFERS_H
-#include <cstdio.h>
+#include <cstdio>
 
 
 template<typename T, unsigned size>
