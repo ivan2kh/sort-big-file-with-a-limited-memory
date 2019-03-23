@@ -10,7 +10,7 @@ You may modify _nbuckets_pow_ constant in _radix.cpp_ in order to choose the num
 Actual number of buckets number will be **2 pow nbuckets_pow**.
 Recommended values are between **8** and **11**. 
 
-```
+```shell
 mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
