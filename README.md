@@ -26,5 +26,3 @@ Number of bits in MSD is determined by _nbuckets_pow_ constant
 Intermediate values in memory and in bucket files are stored 
 in bit packed form.
 2. **Sorting** will sequentially unpack values from bucket files and perform counting sort (uncomment for radix sort) on each bucket. Finally it will store sorted values to output file. 
-
-[Radix sort]: https://en.wikipedia.org/wiki/Radix_sort
